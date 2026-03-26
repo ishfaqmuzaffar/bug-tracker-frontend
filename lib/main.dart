@@ -2,5 +2,6 @@ import 'package:flutter/material.dart';
 import 'app.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const BugTrackerApp());
 }
