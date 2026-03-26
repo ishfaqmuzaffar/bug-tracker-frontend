@@ -26,11 +26,11 @@ class StatCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
+                color: AppColors.primary.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
-                Icons.bar_chart_rounded,
+              child: Icon(
+                icon,
                 color: AppColors.primary,
               ),
             ),

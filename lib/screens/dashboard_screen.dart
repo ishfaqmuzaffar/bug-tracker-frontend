@@ -1,193 +1,343 @@
 import 'package:flutter/material.dart';
+
+import '../core/constants/app_colors.dart';
 import '../models/issue.dart';
+import '../services/issues_service.dart';
 import '../widgets/priority_badge.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/status_badge.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
-  List<Issue> _sampleIssues() {
-    return [
-      Issue(
-        id: 1001,
-        title: 'Login page breaks on invalid token state',
-        project: 'Web Portal',
-        status: 'Open',
-        priority: 'High',
-        assignee: 'Aqib',
-        reporter: 'Admin',
-        createdAt: '2026-03-25',
-      ),
-      Issue(
-        id: 1002,
-        title: 'Dashboard cards overlap on smaller screens',
-        project: 'Admin Panel',
-        status: 'In Progress',
-        priority: 'Medium',
-        assignee: 'Hassan',
-        reporter: 'Admin',
-        createdAt: '2026-03-24',
-      ),
-      Issue(
-        id: 1003,
-        title: 'CORS warning seen during auth refresh call',
-        project: 'API',
-        status: 'Resolved',
-        priority: 'Critical',
-        assignee: 'Team Backend',
-        reporter: 'Admin',
-        createdAt: '2026-03-23',
-      ),
-    ];
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final IssuesService _issuesService = IssuesService();
+
+  bool _loading = true;
+  String? _error;
+  List<Issue> _issues = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadIssues();
+  }
+
+  Future<void> _loadIssues() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final issues = await _issuesService.getIssues();
+      if (!mounted) return;
+
+      setState(() {
+        _issues = issues;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  int _countByStatus(String status) {
+    return _issues.where((e) => e.status.toLowerCase() == status.toLowerCase()).length;
+  }
+
+  int _countByPriority(String priority) {
+    return _issues.where((e) => e.priority.toLowerCase() == priority.toLowerCase()).length;
+  }
+
+  int get _resolvedCount {
+    final statuses = {'resolved', 'closed'};
+    return _issues.where((e) => statuses.contains(e.status.toLowerCase())).length;
+  }
+
+  int get _activeProjects {
+    return _issues.map((e) => e.project.trim()).where((e) => e.isNotEmpty).toSet().length;
+  }
+
+  List<Issue> get _recentIssues {
+    final sorted = [..._issues];
+    sorted.sort((a, b) {
+      final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bd.compareTo(ad);
+    });
+    return sorted.take(6).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final issues = _sampleIssues();
+    if (_loading) {
+      return const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      );
+    }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 1200;
-              final isMedium = constraints.maxWidth > 800;
-
-              int count = 1;
-              if (isWide) {
-                count = 4;
-              } else if (isMedium) {
-                count = 2;
-              }
-
-              return GridView.count(
-                crossAxisCount: count,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.9,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: const [
-                  StatCard(
-                    title: 'Total Issues',
-                    value: '148',
-                    subtitle: '+12 this week',
-                    icon: Icons.bug_report_rounded,
-                  ),
-                  StatCard(
-                    title: 'Open Issues',
-                    value: '32',
-                    subtitle: 'Needs attention',
-                    icon: Icons.error_outline_rounded,
-                  ),
-                  StatCard(
-                    title: 'Resolved',
-                    value: '96',
-                    subtitle: 'Closed successfully',
-                    icon: Icons.check_circle_outline_rounded,
-                  ),
-                  StatCard(
-                    title: 'Active Projects',
-                    value: '8',
-                    subtitle: 'Across all teams',
-                    icon: Icons.folder_open_rounded,
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          Row(
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                flex: 7,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Recent Issues',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Latest activity across active projects',
-                          style: TextStyle(color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 18),
-                        ...issues.map((issue) => _IssueRow(issue: issue)),
-                      ],
-                    ),
-                  ),
-                ),
+              const Icon(Icons.error_outline_rounded, size: 44, color: AppColors.danger),
+              const SizedBox(height: 12),
+              const Text(
+                'Failed to load dashboard',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Priority Summary',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(height: 18),
-                            _MiniStat(title: 'Critical', value: '6'),
-                            _MiniStat(title: 'High', value: '14'),
-                            _MiniStat(title: 'Medium', value: '28'),
-                            _MiniStat(title: 'Low', value: '12'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Team Notes',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(height: 14),
-                            Text(
-                              '• Auth module is stable now\n\n• UI redesign is in progress\n\n• Next target: real issue CRUD and projects section',
-                              style: TextStyle(
-                                height: 1.6,
-                                color: Color(0xFF475569),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadIssues,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
               ),
             ],
           ),
-        ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadIssues,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 1200;
+                final isMedium = constraints.maxWidth > 800;
+
+                int count = 1;
+                if (isWide) {
+                  count = 4;
+                } else if (isMedium) {
+                  count = 2;
+                }
+
+                return GridView.count(
+                  crossAxisCount: count,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1.9,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    StatCard(
+                      title: 'Total Issues',
+                      value: '${_issues.length}',
+                      subtitle: 'Live from backend',
+                      icon: Icons.bug_report_rounded,
+                    ),
+                    StatCard(
+                      title: 'Open Issues',
+                      value: '${_countByStatus('Open')}',
+                      subtitle: 'Needs attention',
+                      icon: Icons.error_outline_rounded,
+                    ),
+                    StatCard(
+                      title: 'Resolved / Closed',
+                      value: '$_resolvedCount',
+                      subtitle: 'Completed issues',
+                      icon: Icons.check_circle_outline_rounded,
+                    ),
+                    StatCard(
+                      title: 'Active Projects',
+                      value: '$_activeProjects',
+                      subtitle: 'Unique projects',
+                      icon: Icons.folder_open_rounded,
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 1050) {
+                  return Column(
+                    children: [
+                      _RecentIssuesCard(issues: _recentIssues),
+                      const SizedBox(height: 16),
+                      _SummaryCard(
+                        critical: _countByPriority('Critical'),
+                        high: _countByPriority('High'),
+                        medium: _countByPriority('Medium'),
+                        low: _countByPriority('Low'),
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 7,
+                      child: _RecentIssuesCard(issues: _recentIssues),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 4,
+                      child: _SummaryCard(
+                        critical: _countByPriority('Critical'),
+                        high: _countByPriority('High'),
+                        medium: _countByPriority('Medium'),
+                        low: _countByPriority('Low'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _RecentIssuesCard extends StatelessWidget {
+  final List<Issue> issues;
+
+  const _RecentIssuesCard({required this.issues});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Recent Issues',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Latest issues from the database',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 18),
+            if (issues.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28),
+                child: Center(
+                  child: Text(
+                    'No issues found yet.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...issues.map((issue) => _IssueRow(issue: issue)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final int critical;
+  final int high;
+  final int medium;
+  final int low;
+
+  const _SummaryCard({
+    required this.critical,
+    required this.high,
+    required this.medium,
+    required this.low,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Priority Summary',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _MiniStat(title: 'Critical', value: '$critical'),
+                _MiniStat(title: 'High', value: '$high'),
+                _MiniStat(title: 'Medium', value: '$medium'),
+                _MiniStat(title: 'Low', value: '$low'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Live Backend Connected',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'The dashboard is now using your real /issues endpoint. Next step should be create issue form, edit issue form, and project APIs.',
+                  style: TextStyle(
+                    height: 1.6,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -203,7 +353,7 @@ class _IssueRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -224,7 +374,7 @@ class _IssueRow extends StatelessWidget {
                 Text(
                   '${issue.project} • Assigned to ${issue.assignee}',
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -256,7 +406,7 @@ class _MiniStat extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                color: Color(0xFF475569),
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
