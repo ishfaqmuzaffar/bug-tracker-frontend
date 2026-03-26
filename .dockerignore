@@ -1,5 +1,6 @@
 .git
 .gitignore
-node_modules
-build/*
-!build/web
+.dart_tool
+.packages
+.pub
+build
