@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,9 +9,13 @@ import '../core/constants/app_config.dart';
 import '../models/issue.dart';
 
 class IssuesService {
-  Future<Map<String, String>> _headers() async {
+  Future<String?> _token() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    return prefs.getString('token');
+  }
+
+  Future<Map<String, String>> _jsonHeaders() async {
+    final token = await _token();
 
     return {
       'Content-Type': 'application/json',
@@ -21,7 +28,7 @@ class IssuesService {
 
     final response = await http.get(
       uri,
-      headers: await _headers(),
+      headers: await _jsonHeaders(),
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -53,24 +60,47 @@ class IssuesService {
     required String project,
     required String assignee,
     required String reporter,
+    PlatformFile? attachment,
   }) async {
+    final token = await _token();
     final uri = Uri.parse('${AppConfig.baseUrl}/issues');
 
-    final body = {
-      'title': title,
-      'description': description,
-      'status': status,
-      'priority': priority,
-      'project': project,
-      'assignee': assignee,
-      'reporter': reporter,
-    };
+    final request = http.MultipartRequest('POST', uri);
 
-    final response = await http.post(
-      uri,
-      headers: await _headers(),
-      body: jsonEncode(body),
-    );
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
+    request.fields['title'] = title;
+    request.fields['description'] = description;
+    request.fields['status'] = status;
+    request.fields['priority'] = priority;
+    request.fields['project'] = project;
+    request.fields['assignee'] = assignee;
+    request.fields['reporter'] = reporter;
+
+    if (attachment != null) {
+      if (attachment.bytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'attachment',
+            attachment.bytes as Uint8List,
+            filename: attachment.name,
+          ),
+        );
+      } else if (attachment.path != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'attachment',
+            attachment.path!,
+            filename: attachment.name,
+          ),
+        );
+      }
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to create issue: ${response.body}');
@@ -85,7 +115,7 @@ class IssuesService {
 
     final response = await http.patch(
       uri,
-      headers: await _headers(),
+      headers: await _jsonHeaders(),
       body: jsonEncode({'status': status}),
     );
 

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
@@ -81,6 +82,8 @@ class _IssuesScreenState extends State<IssuesScreen> {
   }
 
   Future<void> _showCreateIssueDialog() async {
+    final formKey = GlobalKey<FormState>();
+
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     final projectController = TextEditingController();
@@ -89,21 +92,32 @@ class _IssuesScreenState extends State<IssuesScreen> {
 
     String status = 'Open';
     String priority = 'Medium';
+    PlatformFile? selectedFile;
     bool saving = false;
     String? dialogError;
 
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            Future<void> save() async {
-              if (titleController.text.trim().isEmpty) {
+            Future<void> pickFile() async {
+              final result = await FilePicker.platform.pickFiles(
+                withData: true,
+                type: FileType.custom,
+                allowedExtensions: ['png', 'jpg', 'jpeg', 'pdf', 'txt', 'zip'],
+              );
+
+              if (result != null && result.files.isNotEmpty) {
                 setDialogState(() {
-                  dialogError = 'Title is required.';
+                  selectedFile = result.files.first;
                 });
-                return;
               }
+            }
+
+            Future<void> save() async {
+              final valid = formKey.currentState?.validate() ?? false;
+              if (!valid) return;
 
               setDialogState(() {
                 saving = true;
@@ -116,19 +130,14 @@ class _IssuesScreenState extends State<IssuesScreen> {
                   description: descriptionController.text.trim(),
                   status: status,
                   priority: priority,
-                  project: projectController.text.trim().isEmpty
-                      ? 'General'
-                      : projectController.text.trim(),
-                  assignee: assigneeController.text.trim().isEmpty
-                      ? 'Unassigned'
-                      : assigneeController.text.trim(),
-                  reporter: reporterController.text.trim().isEmpty
-                      ? 'Admin'
-                      : reporterController.text.trim(),
+                  project: projectController.text.trim(),
+                  assignee: assigneeController.text.trim(),
+                  reporter: reporterController.text.trim(),
+                  attachment: selectedFile,
                 );
 
                 if (!mounted) return;
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
                 await _loadIssues();
 
                 if (!mounted) return;
@@ -143,106 +152,182 @@ class _IssuesScreenState extends State<IssuesScreen> {
               }
             }
 
+            InputDecoration deco(String label) => InputDecoration(labelText: label);
+
             return AlertDialog(
               title: const Text('Create Issue'),
               content: SizedBox(
-                width: 520,
+                width: 560,
                 child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Title'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: descriptionController,
-                        minLines: 3,
-                        maxLines: 5,
-                        decoration: const InputDecoration(labelText: 'Description'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: projectController,
-                        decoration: const InputDecoration(labelText: 'Project'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: assigneeController,
-                        decoration: const InputDecoration(labelText: 'Assignee'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: reporterController,
-                        decoration: const InputDecoration(labelText: 'Reporter'),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: status,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: const [
-                          'Open',
-                          'In Progress',
-                          'Resolved',
-                          'Closed',
-                        ]
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setDialogState(() {
-                            status = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: priority,
-                        decoration: const InputDecoration(labelText: 'Priority'),
-                        items: const [
-                          'Low',
-                          'Medium',
-                          'High',
-                          'Critical',
-                        ]
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setDialogState(() {
-                            priority = value;
-                          });
-                        },
-                      ),
-                      if (dialogError != null) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.danger.withOpacity(0.20),
-                            ),
-                          ),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: titleController,
+                          decoration: deco('Title *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Title is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: descriptionController,
+                          minLines: 3,
+                          maxLines: 5,
+                          decoration: deco('Description *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Description is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: projectController,
+                          decoration: deco('Project *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Project is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: assigneeController,
+                          decoration: deco('Assignee *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Assignee is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: reporterController,
+                          decoration: deco('Reporter *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Reporter is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: status,
+                          decoration: deco('Status *'),
+                          items: const [
+                            'Open',
+                            'In Progress',
+                            'Resolved',
+                            'Closed',
+                          ]
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() {
+                              status = value;
+                            });
+                          },
+                          validator: (value) =>
+                              value == null || value.isEmpty ? 'Status is required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: priority,
+                          decoration: deco('Priority *'),
+                          items: const [
+                            'Low',
+                            'Medium',
+                            'High',
+                            'Critical',
+                          ]
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() {
+                              priority = value;
+                            });
+                          },
+                          validator: (value) =>
+                              value == null || value.isEmpty ? 'Priority is required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerLeft,
                           child: Text(
-                            dialogError!,
-                            style: const TextStyle(
-                              color: AppColors.danger,
-                              fontWeight: FontWeight.w600,
+                            'Attachment',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: saving ? null : pickFile,
+                              icon: const Icon(Icons.attach_file_rounded),
+                              label: const Text('Choose File'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                selectedFile == null ? 'No file selected' : selectedFile!.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Allowed: PNG, JPG, PDF, TXT, ZIP (max 10 MB)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
+                        if (dialogError != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.danger.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.danger.withOpacity(0.20),
+                              ),
+                            ),
+                            child: Text(
+                              dialogError!,
+                              style: const TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: saving ? null : () => Navigator.of(context).pop(),
+                  onPressed: saving ? null : () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -273,11 +358,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
@@ -372,8 +453,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline_rounded,
-                            size: 44, color: AppColors.danger),
+                        const Icon(Icons.error_outline_rounded, size: 44, color: AppColors.danger),
                         const SizedBox(height: 12),
                         const Text(
                           'Failed to load issues',
@@ -394,10 +474,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
                   child: Center(
                     child: Text(
                       'No issues found.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 )
@@ -449,8 +526,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
                                   onSelected: (value) => _changeStatus(issue, value),
                                   itemBuilder: (context) => const [
                                     PopupMenuItem(value: 'Open', child: Text('Open')),
-                                    PopupMenuItem(
-                                        value: 'In Progress', child: Text('In Progress')),
+                                    PopupMenuItem(value: 'In Progress', child: Text('In Progress')),
                                     PopupMenuItem(value: 'Resolved', child: Text('Resolved')),
                                     PopupMenuItem(value: 'Closed', child: Text('Closed')),
                                   ],
