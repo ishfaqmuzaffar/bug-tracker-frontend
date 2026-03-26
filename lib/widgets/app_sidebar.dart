@@ -124,14 +124,14 @@ class _SidebarTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected
-        ? AppColors.primary.withValues(alpha: 0.18)
+        ? AppColors.primary.withOpacity(0.18)
         : Colors.transparent;
 
     final textColor = danger
         ? const Color(0xFFFCA5A5)
         : selected
-        ? Colors.white
-        : const Color(0xFFCBD5E1);
+            ? Colors.white
+            : const Color(0xFFCBD5E1);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
