@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 28),
                     const Text(
-                      'Track bugs.\nShip faster.',
+                      'JKCIP & HADP \nTrack bugs.\nShip faster.',
                       style: TextStyle(
                         fontSize: 48,
                         height: 1.1,
