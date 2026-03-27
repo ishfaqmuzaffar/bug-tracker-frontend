@@ -14,6 +14,11 @@ class IssuesService {
     return prefs.getString('token');
   }
 
+  Future<String?> getCurrentRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('role');
+  }
+
   Future<Map<String, String>> _jsonHeaders() async {
     final token = await _token();
 
@@ -50,6 +55,22 @@ class IssuesService {
     }
 
     throw Exception('Failed to load issues: ${response.body}');
+  }
+
+  Future<Issue> getIssue(int id) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/issues/$id');
+
+    final response = await http.get(
+      uri,
+      headers: await _jsonHeaders(),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final decoded = jsonDecode(response.body);
+      return Issue.fromJson(Map<String, dynamic>.from(decoded));
+    }
+
+    throw Exception('Failed to load issue: ${response.body}');
   }
 
   Future<void> createIssue({
@@ -122,5 +143,25 @@ class IssuesService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to update issue status: ${response.body}');
     }
+  }
+
+  Future<Issue> addComment({
+    required int id,
+    required String message,
+  }) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/issues/$id/comments');
+
+    final response = await http.post(
+      uri,
+      headers: await _jsonHeaders(),
+      body: jsonEncode({'message': message}),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final decoded = jsonDecode(response.body);
+      return Issue.fromJson(Map<String, dynamic>.from(decoded));
+    }
+
+    throw Exception('Failed to add comment: ${response.body}');
   }
 }

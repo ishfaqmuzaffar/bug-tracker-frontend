@@ -6,6 +6,7 @@ import '../models/issue.dart';
 import '../services/issues_service.dart';
 import '../widgets/priority_badge.dart';
 import '../widgets/status_badge.dart';
+import 'issue_detail_screen.dart';
 
 class IssuesScreen extends StatefulWidget {
   const IssuesScreen({super.key});
@@ -501,6 +502,15 @@ class _IssuesScreenState extends State<IssuesScreen> {
                         ],
                         rows: issues.map((issue) {
                           return DataRow(
+                            onSelectChanged: (_) async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => IssueDetailScreen(issueId: issue.id),
+                                ),
+                              );
+                              await _loadIssues();
+                            },
                             cells: [
                               DataCell(Text('#${issue.id}')),
                               DataCell(
