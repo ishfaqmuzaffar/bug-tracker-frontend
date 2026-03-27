@@ -7,9 +7,15 @@ class Issue {
   final String project;
   final String assignee;
   final String reporter;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-  final List<dynamic> comments;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  // ✅ NEW
+  final String? attachmentName;
+  final String? attachmentPath;
+  final String? attachmentMimeType;
+
+  final List<Comment> comments;
 
   Issue({
     required this.id,
@@ -22,46 +28,58 @@ class Issue {
     required this.reporter,
     required this.createdAt,
     required this.updatedAt,
+    this.attachmentName,
+    this.attachmentPath,
+    this.attachmentMimeType,
     required this.comments,
   });
 
   factory Issue.fromJson(Map<String, dynamic> json) {
-    String readString(List<String> keys, {String fallback = ''}) {
-      for (final key in keys) {
-        final value = json[key];
-        if (value != null && value.toString().trim().isNotEmpty) {
-          return value.toString();
-        }
-      }
-      return fallback;
-    }
-
-    DateTime? readDate(String key) {
-      final value = json[key];
-      if (value == null) return null;
-      return DateTime.tryParse(value.toString());
-    }
-
     return Issue(
-      id: json['id'] is int ? json['id'] : int.tryParse('${json['id']}') ?? 0,
-      title: readString(['title'], fallback: 'Untitled issue'),
-      description: readString(['description'], fallback: ''),
-      status: readString(['status'], fallback: 'Open'),
-      priority: readString(['priority'], fallback: 'Medium'),
-      project: readString(['project', 'projectName'], fallback: 'General'),
-      assignee: readString(['assignee', 'assignedTo'], fallback: 'Unassigned'),
-      reporter: readString(['reporter', 'reportedBy', 'createdBy'], fallback: 'Unknown'),
-      createdAt: readDate('createdAt'),
-      updatedAt: readDate('updatedAt'),
-      comments: (json['comments'] as List?) ?? const [],
+      id: json['id'],
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      status: json['status'] ?? '',
+      priority: json['priority'] ?? '',
+      project: json['project'] ?? '',
+      assignee: json['assignee'] ?? '',
+      reporter: json['reporter'] ?? '',
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+      attachmentName: json['attachmentName'],
+      attachmentPath: json['attachmentPath'],
+      attachmentMimeType: json['attachmentMimeType'],
+      comments: (json['comments'] as List? ?? [])
+          .map((e) => Comment.fromJson(e))
+          .toList(),
     );
   }
 
   String get createdAtDisplay {
-    if (createdAt == null) return '-';
-    final y = createdAt!.year.toString().padLeft(4, '0');
-    final m = createdAt!.month.toString().padLeft(2, '0');
-    final d = createdAt!.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+    return createdAt.toString().split('.')[0];
+  }
+}
+
+class Comment {
+  final int id;
+  final String message;
+  final DateTime createdAt;
+
+  Comment({
+    required this.id,
+    required this.message,
+    required this.createdAt,
+  });
+
+  factory Comment.fromJson(Map<String, dynamic> json) {
+    return Comment(
+      id: json['id'],
+      message: json['message'] ?? '',
+      createdAt: DateTime.parse(json['createdAt']),
+    );
+  }
+
+  String get createdAtDisplay {
+    return createdAt.toString().split('.')[0];
   }
 }
