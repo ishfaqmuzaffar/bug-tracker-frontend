@@ -39,6 +39,30 @@ class AuthService {
     throw Exception(body['message']?.toString() ?? 'Login failed');
   }
 
+  Future<Map<String, dynamic>> getLoginStats() async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/issues/stats');
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer $token',
+      },
+    );
+
+    final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(body);
+    }
+
+    throw Exception(body['message']?.toString() ?? 'Failed to fetch stats');
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
