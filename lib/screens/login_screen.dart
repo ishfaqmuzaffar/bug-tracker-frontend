@@ -856,13 +856,13 @@ class _DonutPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokeWidth = size.width * 0.12;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - strokeWidth;
+    final double strokeWidth = size.width * 0.12;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = (size.width / 2) - strokeWidth;
 
-    final rect = Rect.fromCircle(center: center, radius: radius);
+    final Rect rect = Rect.fromCircle(center: center, radius: radius);
 
-    final backgroundPaint = Paint()
+    final Paint backgroundPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -870,30 +870,33 @@ class _DonutPainter extends CustomPainter {
 
     canvas.drawArc(rect, 0, math.pi * 2, false, backgroundPaint);
 
-    final fixedPaint = Paint()
+    final Paint fixedPaint = Paint()
       ..color = const Color(0xFF22C55E)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    final pendingPaint = Paint()
+    final Paint pendingPaint = Paint()
       ..color = const Color(0xFFF59E0B)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    final criticalPaint = Paint()
+    final Paint criticalPaint = Paint()
       ..color = const Color(0xFFEF4444)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    const gap = 0.08;
+    const double gap = 0.08;
     double startAngle = -math.pi / 2;
 
-    final fixedSweep = math.max(0, (math.pi * 2 * fixedRatio) - gap);
-    final pendingSweep = math.max(0, (math.pi * 2 * pendingRatio) - gap);
-    final criticalSweep = math.max(0, (math.pi * 2 * criticalRatio) - gap);
+    final double fixedSweep =
+        math.max(0.0, (math.pi * 2 * fixedRatio) - gap).toDouble();
+    final double pendingSweep =
+        math.max(0.0, (math.pi * 2 * pendingRatio) - gap).toDouble();
+    final double criticalSweep =
+        math.max(0.0, (math.pi * 2 * criticalRatio) - gap).toDouble();
 
     if (fixedSweep > 0) {
       canvas.drawArc(rect, startAngle, fixedSweep, false, fixedPaint);
